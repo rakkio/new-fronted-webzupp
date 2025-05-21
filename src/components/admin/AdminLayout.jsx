@@ -5,106 +5,38 @@ import { useUser } from '../../../context/UserContext';
 import { useRouter } from 'next/router';
 
 export default function AdminLayout({ children }) {
-  const { user, isAuthenticated, logout, isAdmin: isAdminUser } = useUser();
+  const { user, isAuthenticated, logout } = useUser();
   const [isClient, setIsClient] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   
-  // Verificar estado de autenticación y permisos
+  // Determinación simple de si el usuario es admin basado en el contexto del usuario
+  const isAdmin = isAuthenticated && user?.role === 'admin';
+  
+  // Evitar problemas de hidratación usando useEffect para clientside rendering
   useEffect(() => {
     setIsClient(true);
     
-    // Función para verificar permisos de admin
-    const checkAdminAccess = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Verificar explícitamente el token en localStorage
-        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
-        const tokenExists = !!token;
-        
-        // Registrar información sobre el token
-        if (tokenExists && token) {
-          console.log(`AdminLayout - Token: ${token.substring(0, 15)}... (longitud: ${token.length})`);
-        }
-        
-        // Verificar con el backend si el usuario es admin (mediante fetch directo)
-        if (tokenExists) {
-          try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-            const response = await fetch(`${apiUrl}/auth/profile`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              const userRole = data.data?.role || data.user?.role;
-              const isUserAdmin = userRole === 'admin';
-              
-              console.log('AdminLayout - Verificación backend:', {
-                success: true,
-                userRole,
-                isAdmin: isUserAdmin
-              });
-              
-              setIsAdmin(isUserAdmin);
-            } else {
-              console.error('AdminLayout - Error al verificar con backend:', await response.text());
-              setIsAdmin(false);
-            }
-          } catch (error) {
-            console.error('AdminLayout - Error en fetch de verificación:', error);
-            // Si hay un error de red, usar el estado local como respaldo
-            setIsAdmin(isAuthenticated && user?.role === 'admin');
-          }
-        } else {
-          setIsAdmin(false);
-        }
-        
-        // Añadir diagnóstico para verificar el estado de autenticación y rol
-        console.log('AdminLayout - Verificación de acceso:', {
-          token: tokenExists ? 'Presente' : 'No encontrado',
-          autenticado: isAuthenticated,
-          esAdmin: isAdmin,
-          usuarioLocal: user ? {
-            id: user._id,
-            email: user.email,
-            role: user.role || 'no definido'
-          } : 'no disponible'
-        });
-      } catch (err) {
-        console.error('Error al verificar acceso admin:', err);
-        setIsAdmin(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    // Verificar permisos de administrador
-    checkAdminAccess();
-    
-    // Re-verificar cuando cambie la ruta (previene problemas con navegación)
-    const handleRouteChange = () => {
-      checkAdminAccess();
-    };
-    
-    router.events.on('routeChangeComplete', handleRouteChange);
-    return () => {
-      router.events.off('routeChangeComplete', handleRouteChange);
-    };
-  }, [user, isAuthenticated, router, isAdminUser]);
+    // Solo para propósitos de diagnóstico
+    if (isClient) {
+      console.log('AdminLayout - Estado de usuario:', {
+        autenticado: isAuthenticated,
+        esAdmin: isAdmin,
+        usuario: user ? {
+          id: user._id,
+          email: user.email,
+          role: user.role || 'no definido'
+        } : 'no disponible'
+      });
+    }
+  }, [isClient, isAuthenticated, isAdmin, user]);
 
   // Estado de carga inicial - mostrar pantalla de carga mientras determinamos acceso
-  if (isLoading || !isClient) {
+  if (!isClient) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <FaSpinner className="animate-spin text-3xl text-indigo-600 mx-auto mb-4" />
-          <p className="text-gray-600">Verificando accesso...</p>
+          <p className="text-gray-600">Cargando...</p>
         </div>
       </div>
     );
