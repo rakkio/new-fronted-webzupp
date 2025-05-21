@@ -39,40 +39,41 @@ const routes = [
   '/portfolio'
 ];
 
-class Sitemap {
-  static async getInitialProps({ res }) {
-    try {
-      // Configuración base
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://webzupp.com';
-      
-      // Obtener todos los blogs publicados
-      const blogsResponse = await getBlogs({ status: 'published', limit: 1000 });
-      const blogs = blogsResponse.success 
-        ? (Array.isArray(blogsResponse.data) ? blogsResponse.data : blogsResponse.data.blogs || []) 
-        : [];
-      
-      // Generar el XML
-      const sitemap = generateSitemap(baseUrl, routes, blogs);
-      
-      // Configurar cabeceras y enviar respuesta
-      if (res) {
-        res.setHeader('Content-Type', 'text/xml');
-        res.setHeader('Cache-Control', 'public, s-maxage=1200, stale-while-revalidate=600');
-        res.write(sitemap);
-        res.end();
-      }
-    } catch (error) {
-      if (res) {
-        res.statusCode = 500;
-        res.write('Error generando el sitemap');
-        res.end();
-      }
+export async function getServerSideProps({ res }) {
+  try {
+    // Configuración base
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://webzupp.com';
+    
+    // Obtener todos los blogs publicados
+    const blogsResponse = await getBlogs({ status: 'published', limit: 1000 });
+    const blogs = blogsResponse.success 
+      ? (Array.isArray(blogsResponse.data) ? blogsResponse.data : blogsResponse.data.blogs || []) 
+      : [];
+    
+    // Generar el XML
+    const sitemap = generateSitemap(baseUrl, routes, blogs);
+    
+    // Configurar cabeceras y enviar respuesta
+    if (res) {
+      res.setHeader('Content-Type', 'text/xml');
+      res.setHeader('Cache-Control', 'public, s-maxage=1200, stale-while-revalidate=600');
+      res.write(sitemap);
+      res.end();
+    }
+
+    return { props: {} };
+  } catch (error) {
+    if (res) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'text/plain');
+      res.write('Error generando el sitemap');
+      res.end();
     }
     
-    return {
-      props: {}
-    };
+    return { props: {} };
   }
 }
 
+// Este componente es necesario pero no se renderizará
+const Sitemap = () => null;
 export default Sitemap; 
