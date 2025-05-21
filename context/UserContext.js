@@ -54,6 +54,12 @@ const storeToken = (token) => {
   
   if (token) {
     try {
+      // Verificar formato del token (debe ser un JWT válido)
+      if (!(typeof token === 'string' && token.includes('.') && token.split('.').length === 3)) {
+        console.error('Intento de guardar token con formato inválido');
+        return;
+      }
+      
       localStorage.setItem('token', token);
       // Guardar una copia de respaldo para diagnóstico
       localStorage.setItem('token_backup', token);
@@ -180,7 +186,21 @@ export const UserProvider = ({ children }) => {
           return;
         }
 
-        // Verificar con el servidor sin validar formato del token
+        // Validar el formato del token (JWT debe tener 3 partes separadas por puntos)
+        if (!token.includes('.') || token.split('.').length !== 3) {
+          console.error('Token con formato inválido, cerrando sesión');
+          // Limpiar token y usuario si el formato no es válido
+          localStorage.removeItem('token');
+          localStorage.removeItem('token_backup');
+          localStorage.removeItem('token_length');
+          localStorage.removeItem('userData');
+          setUser(null);
+          storeUser(null);
+          setLoading(false);
+          return;
+        }
+
+        // Verificar con el servidor
         try {
           const response = await fetch(`${getApiUrl()}/auth/profile`, {
             method: 'GET',
@@ -272,7 +292,14 @@ export const UserProvider = ({ children }) => {
             return { success: false, message: 'Token no recibido' };
           }
           
-          // Guardar el token sin validar formato estrictamente
+          // Verificar formato del token (debe ser un JWT válido)
+          if (!token.includes('.') || token.split('.').length !== 3) {
+            console.error('Token con formato inválido:', token);
+            setError('Token con formato inválido recibido del servidor');
+            return { success: false, message: 'Token con formato inválido' };
+          }
+          
+          // Guardar el token
           localStorage.setItem('token', token);
           localStorage.setItem('token_backup', token);
           localStorage.setItem('token_length', String(token.length));
@@ -337,10 +364,17 @@ export const UserProvider = ({ children }) => {
             };
           }
           
-          // Obtener el token, sin validación estricta de formato
+          // Obtener el token
           let token = data.data.token;
           
-          // Guardar el token sin validar formato estrictamente
+          // Verificar formato del token (debe ser un JWT válido)
+          if (!token.includes('.') || token.split('.').length !== 3) {
+            console.error('Token con formato inválido durante el registro:', token);
+            setError('Token con formato inválido recibido del servidor');
+            return { success: false, message: 'Token con formato inválido' };
+          }
+          
+          // Guardar el token
           localStorage.setItem('token', token);
           localStorage.setItem('token_backup', token);
           localStorage.setItem('token_length', String(token.length));
