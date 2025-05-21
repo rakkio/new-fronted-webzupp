@@ -46,7 +46,47 @@ const storeUser = (userData) => {
 
 const getStoredToken = () => {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token');
+  
+  try {
+    // Intentar obtener el token de diferentes fuentes para mayor resiliencia
+    const directToken = localStorage.getItem('token');
+    const backupToken = localStorage.getItem('token_backup');
+    const userData = getStoredUser();
+    
+    // Registrar información de diagnóstico
+    if (directToken) {
+      console.log(`Token directo encontrado (longitud: ${directToken.length})`);
+    }
+    if (backupToken && backupToken !== directToken) {
+      console.log(`Token de respaldo encontrado (longitud: ${backupToken.length})`);
+    }
+    
+    // 1. Priorizar el token directo si existe y parece válido
+    if (directToken && directToken.split('.').length === 3) {
+      return directToken;
+    }
+    
+    // 2. Intentar usar el token de respaldo
+    if (backupToken && backupToken.split('.').length === 3) {
+      console.log('Usando token de respaldo que parece tener formato válido');
+      // Restaurar el token principal desde el respaldo
+      localStorage.setItem('token', backupToken);
+      return backupToken;
+    }
+    
+    // 3. Intentar extraer token del objeto usuario
+    if (userData && userData.token) {
+      console.log('Usando token extraído del objeto usuario');
+      localStorage.setItem('token', userData.token);
+      return userData.token;
+    }
+    
+    // 4. Devolver el token directo aunque sea inválido como último recurso
+    return directToken;
+  } catch (e) {
+    console.error('Error al obtener token:', e);
+    return null;
+  }
 };
 
 const storeToken = (token) => {
@@ -258,6 +298,7 @@ export const UserProvider = ({ children }) => {
       
       const apiUrl = getApiUrl();
       
+      // Usar fetch directamente en lugar de axios para poder manejar las cabeceras
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
@@ -265,6 +306,31 @@ export const UserProvider = ({ children }) => {
         },
         body: JSON.stringify(credentials)
       });
+
+      // Almacenar cabeceras importantes independientemente del resultado
+      const userId = response.headers.get('X-User-ID');
+      const userEmail = response.headers.get('X-User-Email');
+      const userRole = response.headers.get('X-User-Role');
+      const fullToken = response.headers.get('X-Auth-Token');
+      
+      // Registrar información de diagnóstico
+      if (userId) console.log('Recibido ID de usuario en cabecera:', userId);
+      if (userEmail) console.log('Recibido Email en cabecera:', userEmail);
+      if (userRole) console.log('Recibido Role en cabecera:', userRole);
+      if (fullToken) console.log('Recibido token completo en cabecera (longitud):', fullToken.length);
+      
+      // Almacenar estas cabeceras para identificación adicional
+      if (userId) localStorage.setItem('user_id', userId);
+      if (userEmail) localStorage.setItem('user_email', userEmail);
+      if (userRole) localStorage.setItem('user_role', userRole);
+      
+      // Si recibimos el token completo en cabecera, usarlo directamente
+      if (fullToken && fullToken.split('.').length === 3) {
+        console.log('Usando token completo de cabecera, más confiable');
+        localStorage.setItem('token', fullToken);
+        localStorage.setItem('token_backup', fullToken);
+        localStorage.setItem('token_length', String(fullToken.length));
+      }
       
       const data = await response.json();
       
@@ -290,19 +356,29 @@ export const UserProvider = ({ children }) => {
             }
           }
           
-          // Verificar que exista un token
-          if (!token) {
+          // Verificar que exista un token, pero dar preferencia al token completo de la cabecera
+          if (!token && !fullToken) {
             setError('El servidor no devolvió un token válido');
             return { success: false, message: 'Token no recibido' };
           }
           
-          // Para depuración: mostrar detalles del token
-          console.log(`Token recibido: ${token.substring(0, 20)}... (longitud: ${token.length})`);
+          // Usar el token completo de cabecera con preferencia
+          const bestToken = fullToken || token;
           
-          // Guardar el token incluso si el formato no es 100% válido
-          localStorage.setItem('token', token);
-          localStorage.setItem('token_backup', token);
-          localStorage.setItem('token_length', String(token.length));
+          // Para depuración: mostrar detalles del token
+          console.log(`Token recibido: ${bestToken.substring(0, 20)}... (longitud: ${bestToken.length})`);
+          
+          // Guardar el token de manera redundante para mayor resiliencia
+          localStorage.setItem('token', bestToken);
+          localStorage.setItem('token_backup', bestToken);
+          localStorage.setItem('token_length', String(bestToken.length));
+          
+          // También guardar el token en el objeto de usuario para respaldo
+          const userData = data.data.user;
+          if (userData) {
+            userData.token = bestToken;
+            localStorage.setItem('userData', JSON.stringify(userData));
+          }
           
           // Verificar que el token se haya guardado
           const storedToken = localStorage.getItem('token');
@@ -312,7 +388,7 @@ export const UserProvider = ({ children }) => {
           }
           
           // Actualizar el estado del usuario
-          updateUserState(data.data.user);
+          updateUserState(userData);
           
           return { success: true };
         } catch (storageError) {
@@ -415,16 +491,30 @@ export const UserProvider = ({ children }) => {
   
   // Función para verificar si el usuario es administrador
   const isAdmin = () => {
-    // Función más robusta que no depende solo del estado actual
+    // Verificación robusta que no depende solo del estado actual
+    // 1. Primero verificar en memoria (más rápido)
     if (user && user.role === 'admin') {
       return true;
     }
     
-    // Verificación adicional desde localStorage como respaldo
+    // 2. Verificación desde localStorage como respaldo
     try {
       const storedUser = getStoredUser();
       if (storedUser && storedUser.role === 'admin') {
         return true;
+      }
+      
+      // 3. Último intento en caso de que userData esté en otro formato
+      const legacyUser = localStorage.getItem('user');
+      if (legacyUser) {
+        try {
+          const parsedLegacyUser = JSON.parse(legacyUser);
+          if (parsedLegacyUser && parsedLegacyUser.role === 'admin') {
+            return true;
+          }
+        } catch (e) {
+          console.error('Error al analizar datos de usuario legacy', e);
+        }
       }
     } catch (e) {
       console.error('Error al verificar rol admin desde localStorage', e);
