@@ -21,7 +21,7 @@ export default function Register() {
     useEffect(() => {
         // Si el usuario ya está autenticado, redirigir
         if (isAuthenticated) {
-            setRegisterStatus('Ya has iniciado sesión. Redirigiendo...');
+            setRegisterStatus('ti sei già loggato');
             router.push('/');
         }
     }, [isAuthenticated, router]);
@@ -45,7 +45,7 @@ export default function Register() {
         }
         
         try {
-            setRegisterStatus('Creando cuenta...')
+            setRegisterStatus('Creando account...')
             
             const userData = {
                 email,
@@ -58,10 +58,10 @@ export default function Register() {
             const result = await register(userData)
             
             if (result.success) {
-                setRegisterStatus('Registro exitoso! Redirigiendo...')
+                setRegisterStatus('Registro verificato...')
                 
                 // Mostrar mensaje sobre verificación de email
-                setRegisterStatus('Registro exitoso! Te hemos enviado un email de verificación. Redirigiendo...');
+                setRegisterStatus('Registro verificato! Ti abbiamo inviato un email di verifica. Redirigendo...');
                 
                 setTimeout(() => {
                     router.push('/')
@@ -71,7 +71,7 @@ export default function Register() {
                 setRegisterStatus('')
             }
         } catch (err) {
-            setErrorMsg('Error del servidor: ' + (err.message || 'Desconocido'))
+            setErrorMsg('Errore del server: ' + (err.message || 'Sconosciuto'))
             setRegisterStatus('')
         }
     }   

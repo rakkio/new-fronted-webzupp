@@ -55,16 +55,17 @@ const storeToken = (token) => {
   if (token) {
     try {
       localStorage.setItem('token', token);
-      
-      // Advertir si el formato no parece un JWT estándar
-      if (!(typeof token === 'string' && token.includes('.') && token.split('.').length === 3)) {
-        // Token no tiene formato JWT estándar
-      }
+      // Guardar una copia de respaldo para diagnóstico
+      localStorage.setItem('token_backup', token);
+      localStorage.setItem('token_length', String(token.length));
     } catch (e) {
       // Error al guardar token
+      console.error('Error al guardar token en localStorage');
     }
   } else {
     localStorage.removeItem('token');
+    localStorage.removeItem('token_backup');
+    localStorage.removeItem('token_length');
   }
 };
 
@@ -179,78 +180,36 @@ export const UserProvider = ({ children }) => {
           return;
         }
 
-        // Verificar formato del token
-        const isValidTokenFormat = token.includes('.') && token.split('.').length === 3;
-        
-        // Si el token no tiene formato válido y estamos en desarrollo, crear uno temporal
-        if (!isValidTokenFormat && storedUser && process.env.NODE_ENV === 'development') {
-          try {
-            // Crear token JWT en formato correcto para entorno de desarrollo
-            const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-            const payload = btoa(JSON.stringify({
-              userId: storedUser._id,
-              email: storedUser.email,
-              role: storedUser.role || 'user',
-              iat: Math.floor(Date.now() / 1000),
-              exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60 // 24 horas
-            }));
-            const signature = btoa('development-signature-placeholder');
-            
-            // Crear token en formato JWT válido
-            token = `${header}.${payload}.${signature}`;
-            
-            // Guardar el nuevo token
-            localStorage.setItem('token', token);
-            localStorage.setItem('token_backup', token);
-            localStorage.setItem('token_length', String(token.length));
-            
-            // Ahora el token debería ser válido
-            setUser(storedUser);
-            setLoading(false);
-            
-            // En desarrollo, permitimos continuar sin verificar con el backend
-            return;
-          } catch (tokenError) {
-            // Si hay error al crear token, continuar con flujo normal
-          }
-        }
-        
-        // Verificar con el servidor solo si el token parece válido
-        if (isValidTokenFormat) {
-          try {
-            const response = await fetch(`${getApiUrl()}/auth/profile`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              updateUserState(data.user || data.data);
-            } else {
-              // En producción debería cerrar sesión, en desarrollo podemos mantener para debugging
-              if (process.env.NODE_ENV === 'development') {
-                // Mantener sesión a pesar del error
-              } else {
-                logout();
-              }
+        // Verificar con el servidor sin validar formato del token
+        try {
+          const response = await fetch(`${getApiUrl()}/auth/profile`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`
             }
-          } catch (error) {
-            // Error al verificar con backend - en desarrollo mantenemos sesión
-            if (process.env.NODE_ENV !== 'development') {
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            updateUserState(data.user || data.data);
+          } else {
+            // En producción debería cerrar sesión, en desarrollo podemos mantener para debugging
+            if (process.env.NODE_ENV === 'development') {
+              // Mantener sesión a pesar del error
+            } else {
               logout();
             }
           }
-        } else {
-          // Token con formato inválido
+        } catch (error) {
+          // Error al verificar con backend - en desarrollo mantenemos sesión
           if (process.env.NODE_ENV !== 'development') {
             logout();
           }
         }
+        
+        setLoading(false);
       } catch (error) {
-        // Error general
-      } finally {
+        console.error('Error al verificar autenticación:', error);
         setLoading(false);
       }
     };
@@ -273,157 +232,73 @@ export const UserProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      // Verificar si localStorage está disponible
-      if (!isLocalStorageAvailable()) {
-        setError('Tu navegador no permite almacenar la sesión. Habilita cookies y localStorage.');
-        return { 
-          success: false, 
-          message: 'Tu navegador no permite almacenar la sesión. Habilita cookies y localStorage.' 
-        };
-      }
+      const apiUrl = getApiUrl();
       
-      // Limpiar cualquier token anterior para evitar conflictos
-      try {
-        localStorage.removeItem('token');
-        localStorage.removeItem('token_backup');
-        localStorage.removeItem('token_length');
-      } catch (clearError) {
-        // Error al limpiar tokens anteriores
-      }
-      
-      const response = await fetch(`${getApiUrl()}/auth/login`, {
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(credentials)
       });
-
+      
       const data = await response.json();
       
       if (data.success) {
-        // Guardar token primero para mantener coherencia
         try {
-          // Asegurarse de que el token no es undefined o null
-          if (!data.data.token) {
-            setError('El servidor no devolvió un token válido');
-            return {
-              success: false,
-              message: 'El servidor no devolvió un token válido'
-            };
-          }
+          let token = data.data?.token;
           
-          // Inicialmente, guardar el token recibido
-          let token = data.data.token;
-          
-          // Verificar si el token tiene formato JWT válido
-          const isValidTokenFormat = token.includes('.') && token.split('.').length === 3;
-          
-          // Si el token no tiene formato JWT válido, intentar recuperarlo o crear uno temporal
-          if (!isValidTokenFormat) {
-            // Si tenemos tokenId, intentar recuperar el token completo
-            if (data.data.tokenId) {
-              try {
-                const tokenResponse = await fetch(`${getApiUrl()}/auth/token/${data.data.tokenId}`);
-                
-                if (tokenResponse.ok) {
-                  const tokenData = await tokenResponse.json();
-                  
-                  if (tokenData.success && tokenData.data && tokenData.data.token) {
-                    const recoveredToken = tokenData.data.token;
-                    
-                    // Si el token recuperado tiene formato JWT válido, usarlo
-                    if (recoveredToken.includes('.') && recoveredToken.split('.').length === 3) {
-                      token = recoveredToken;
-                    } else if (process.env.NODE_ENV === 'development') {
-                      // En desarrollo, crear un token temporal
-                      token = createDevelopmentToken(data.data.user);
-                    } else {
-                      setError('No se pudo obtener un token con formato JWT válido');
-                      return {
-                        success: false,
-                        message: 'No se pudo obtener un token con formato JWT válido'
-                      };
-                    }
-                  }
-                } else if (process.env.NODE_ENV === 'development') {
-                  // En desarrollo, crear un token temporal
-                  token = createDevelopmentToken(data.data.user);
-                } else {
-                  setError('No se pudo recuperar el token completo');
-                  return {
-                    success: false,
-                    message: 'No se pudo recuperar el token completo'
-                  };
-                }
-              } catch (tokenError) {
-                if (process.env.NODE_ENV === 'development') {
-                  // En desarrollo, crear un token temporal
-                  token = createDevelopmentToken(data.data.user);
-                } else {
-                  setError('Error al recuperar token completo');
-                  return {
-                    success: false,
-                    message: 'Error al recuperar token completo'
-                  };
-                }
+          // Si tenemos un tokenId en lugar de un token directo, intentar recuperarlo
+          if (!token && data.data?.tokenId) {
+            try {
+              const tokenResponse = await fetch(`${apiUrl}/auth/token/${data.data.tokenId}`);
+              const tokenData = await tokenResponse.json();
+              
+              if (tokenData.success && tokenData.data?.token) {
+                token = tokenData.data.token;
+              } else {
+                throw new Error('No se pudo recuperar el token');
               }
-            } else if (process.env.NODE_ENV === 'development') {
-              // En desarrollo, crear un token temporal si no hay tokenId
-              token = createDevelopmentToken(data.data.user);
-            } else {
-              setError('Token con formato inválido');
-              return {
-                success: false,
-                message: 'Token con formato inválido'
-              };
+            } catch (tokenError) {
+              console.error('Error al recuperar token:', tokenError);
+              setError('Error al recuperar el token de autenticación');
+              return { success: false, message: 'Error al recuperar el token de autenticación' };
             }
           }
           
-          // Verificar que el token ahora tenga formato válido
-          if (!(token.includes('.') && token.split('.').length === 3)) {
-            setError('No se pudo obtener un token con formato JWT válido');
-            return {
-              success: false,
-              message: 'No se pudo obtener un token con formato JWT válido'
-            };
+          // Verificar que exista un token
+          if (!token) {
+            setError('El servidor no devolvió un token válido');
+            return { success: false, message: 'Token no recibido' };
           }
           
-          // Guardar el token en localStorage
+          // Guardar el token sin validar formato estrictamente
           localStorage.setItem('token', token);
           localStorage.setItem('token_backup', token);
           localStorage.setItem('token_length', String(token.length));
           
-          // Verificar que se haya guardado
+          // Verificar que el token se haya guardado
           const storedToken = localStorage.getItem('token');
           if (!storedToken) {
             setError('No se pudo guardar el token');
-            return {
-              success: false,
-              message: 'No se pudo guardar el token'
-            };
+            return { success: false, message: 'No se pudo guardar el token' };
           }
           
-          // Actualizar estado del usuario
+          // Actualizar el estado del usuario
           updateUserState(data.data.user);
           
-          return { 
-            success: true,
-            data: {
-              token: token,
-              user: data.data.user
-            }
-          };
+          return { success: true };
         } catch (storageError) {
           setError('Error al guardar la sesión. Comprueba que tu navegador permita cookies.');
           return {
             success: false,
-            message: 'Error al guardar la sesión. Comprueba que tu navegador permite cookies.'
+            message: 'Error al guardar la sesión. Comprueba que tu navegador permita cookies.'
           };
         }
       } else {
-        setError(data.message || 'Error al iniciar sesión');
-        return { success: false, message: data.message };
+        const errorMessage = data.message || 'Error al iniciar sesión';
+        setError(errorMessage);
+        return { success: false, message: errorMessage };
       }
     } catch (error) {
       setError('Error de conexión al servidor');
@@ -433,20 +308,6 @@ export const UserProvider = ({ children }) => {
     }
   };
   
-  // Función auxiliar para crear tokens de desarrollo
-  const createDevelopmentToken = (user) => {
-    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-    const payload = btoa(JSON.stringify({
-      userId: user._id,
-      email: user.email,
-      role: user.role || 'user',
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60 // 24 horas
-    }));
-    const signature = btoa('development-signature-placeholder');
-    return `${header}.${payload}.${signature}`;
-  };
-
   // Función para registrarse
   const register = async (userData) => {
     try {
@@ -476,22 +337,10 @@ export const UserProvider = ({ children }) => {
             };
           }
           
-          // Verificar el formato del token
+          // Obtener el token, sin validación estricta de formato
           let token = data.data.token;
-          const isValidTokenFormat = token.includes('.') && token.split('.').length === 3;
           
-          // Si el token no tiene formato válido y estamos en desarrollo, crear uno temporal
-          if (!isValidTokenFormat && process.env.NODE_ENV === 'development') {
-            token = createDevelopmentToken(data.data.user);
-          } else if (!isValidTokenFormat) {
-            setError('Token con formato inválido durante el registro');
-            return {
-              success: false,
-              message: 'Token con formato inválido durante el registro'
-            };
-          }
-          
-          // Guardar el token
+          // Guardar el token sin validar formato estrictamente
           localStorage.setItem('token', token);
           localStorage.setItem('token_backup', token);
           localStorage.setItem('token_length', String(token.length));
