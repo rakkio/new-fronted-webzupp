@@ -54,16 +54,10 @@ export default function Login() {
             const token = localStorage.getItem('token');
             console.log('Verificando token al cargar página de login:', {
                 existe: !!token,
-                longitud: token?.length,
-                formatoValido: token && token.includes('.') && token.split('.').length === 3
+                longitud: token?.length
             });
-
-            // Si el token existe pero no tiene el formato correcto de JWT
-            if (token && (!token.includes('.') || token.split('.').length !== 3)) {
-                console.warn('Token con formato inválido detectado');
-                // Limpiar automáticamente el token inválido
-                localStorage.removeItem('token');
-            }
+            
+            // No validamos formato específico del token para ser más flexibles
         };
         
         checkToken();
@@ -87,134 +81,23 @@ export default function Login() {
             // Crear un objeto con las credenciales
             const credentials = { email, password }
             
-            // Usar el método de autenticación directa desde la API
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(credentials),
-            });
+            // Usamos directamente el método de login del contexto sin la complejidad adicional
+            const result = await login(credentials);
             
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Error durante la autenticación');
-            }
-            
-            const data = await response.json();
-            console.log('Respuesta de login directa:', {
-                success: data.success,
-                message: data.message,
-                tokenRecibido: data.success && !!data.data?.token,
-                tokenId: data.data?.tokenId
-            });
-            
-            if (!data.success) {
-                setErrorMsg(data.message || 'Credenciales inválidas');
-                setLoginStatus('');
-                return;
-            }
-            
-            // Verificar token recibido
-            if (!data.data?.token) {
-                console.error('Token no recibido del servidor');
-                setErrorMsg('Error en la respuesta del servidor: token no recibido');
-                setLoginStatus('');
-                return;
-            }
-            
-            const token = data.data.token;
-            
-            // Si recibimos un tokenId, intentar recuperar el token completo
-            if (data.data.tokenId) {
-                try {
-                    console.log(`Recuperando token completo mediante tokenId: ${data.data.tokenId}`);
-                    const tokenResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/token/${data.data.tokenId}`);
-                    
-                    if (tokenResponse.ok) {
-                        const tokenData = await tokenResponse.json();
-                        if (tokenData.success && tokenData.data?.token) {
-                            console.log('Token completo recuperado exitosamente:', {
-                                longitud: tokenData.data.token.length,
-                                partes: tokenData.data.token.split('.').length
-                            });
-                            
-                            // Intentar guardar el token completo
-                            try {
-                                // Guardar el token recuperado en localStorage
-                                localStorage.removeItem('token'); // Limpiar primero
-                                localStorage.setItem('token', tokenData.data.token);
-                                
-                                // Guardar una copia adicional
-                                localStorage.setItem('token_full', tokenData.data.token);
-                                localStorage.setItem('token_length', String(tokenData.data.token.length));
-                                
-                                // Verificar si se guardó correctamente
-                                const savedToken = localStorage.getItem('token');
-                                if (!savedToken || savedToken.length !== tokenData.data.token.length) {
-                                    console.error('Error al guardar token completo en localStorage');
-                                    throw new Error('No se pudo guardar el token completo');
-                                }
-                                
-                                console.log('Token completo guardado correctamente');
-                                
-                                // Continuar con el proceso de login normal usando contextContext
-                                const result = await login(credentials);
-                                
-                                console.log('Login exitoso, token verificado, redirigiendo a:', redirectPath);
-                                setLoginStatus('Login exitoso! Redirigiendo...');
-                                
-                                // Redirigir después de un breve retraso
-                                setTimeout(() => {
-                                    window.location.href = redirectPath;
-                                }, 1000);
-                                
-                                return; // Salir del flujo principal si todo fue exitoso
-                            } catch (storageError) {
-                                console.error('Error al guardar token recuperado:', storageError);
-                                // Continuar con el flujo de recuperación manual
-                            }
-                        }
-                    }
-                } catch (tokenRetrievalError) {
-                    console.error('Error al recuperar token completo:', tokenRetrievalError);
-                    // Continuar con el flujo normal, ignorando este error
-                }
-            }
-            
-            // PLAN B: Intentar el login normal del contexto
-            try {
-                console.log('Usando método de login estándar del contexto');
-                const result = await login(credentials);
+            if (result.success) {
+                console.log('Login exitoso, redirigiendo a:', redirectPath);
+                setLoginStatus('Login exitoso! Redirigiendo...');
                 
-                if (result.success) {
-                    // Verificar que el token se haya guardado correctamente
-                    const tokenCheck = localStorage.getItem('token');
-                    if (!tokenCheck) {
-                        // Intentar guardar manualmente desde la respuesta directa
-                        console.log('Token no encontrado después de login. Intentando guardado manual directo.');
-                        localStorage.setItem('token', token);
-                        localStorage.setItem('userData', JSON.stringify(data.data.user));
-                    }
-                    
-                    console.log('Login exitoso, redirigiendo a:', redirectPath);
-                    setLoginStatus('Login exitoso! Redirigiendo...');
-                    
-                    // Redirigir
-                    setTimeout(() => {
-                        window.location.href = redirectPath;
-                    }, 1000);
-                } else {
-                    setErrorMsg(result.message || 'Error durante la autenticación');
-                    setLoginStatus('');
-                }
-            } catch (loginError) {
-                console.error('Error en método login del contexto:', loginError);
-                setErrorMsg('Error durante el proceso de login: ' + loginError.message);
+                // Redirigir
+                setTimeout(() => {
+                    router.push(redirectPath);
+                }, 1000);
+            } else {
+                setErrorMsg(result.message || 'Errore durante l\'autenticazione');
                 setLoginStatus('');
             }
         } catch (err) {
-            setErrorMsg('Error del servidor: ' + (err.message || 'Desconocido'));
+            setErrorMsg('Errore del server: ' + (err.message || 'Sconosciuto'));
             setLoginStatus('');
             console.error('Excepción durante login:', err);
         }
