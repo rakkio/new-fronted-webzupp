@@ -16,17 +16,9 @@ export default function AdminLayout({ children }) {
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
     const tokenExists = !!token;
     
-    // Verificar que el token tiene formato JWT válido
-    const isTokenValid = token && token.includes('.') && token.split('.').length === 3;
-    
-    // Si el token no es válido, limpiar y forzar logout
-    if (tokenExists && !isTokenValid && typeof localStorage !== 'undefined') {
-      console.error('AdminLayout: Token inválido detectado, forzando logout');
-      localStorage.removeItem('token');
-      localStorage.removeItem('userData');
-      // Forzar recarga para reiniciar estado
-      window.location.href = '/auth/login';
-      return;
+    // Registrar información sobre el token pero no validar estrictamente su formato
+    if (tokenExists && token) {
+      console.log(`AdminLayout - Token: ${token.substring(0, 15)}... (longitud: ${token.length})`);
     }
     
     // Determinar si es admin usando isAdmin desde useUser
@@ -36,7 +28,6 @@ export default function AdminLayout({ children }) {
     // Añadir diagnóstico para verificar el estado de autenticación y rol
     console.log('AdminLayout - Verificación de acceso:', {
       token: tokenExists ? 'Presente' : 'No encontrado',
-      formatoValido: isTokenValid,
       autenticado: isAuthenticated,
       esAdmin: userIsAdmin,
       usuario: user ? {
