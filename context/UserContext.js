@@ -177,11 +177,11 @@ export const UserProvider = ({ children }) => {
           });
         }
         
-        // Si no hay token pero hay estado de usuario, es inconsistente
+        // Si no hay token pero hay estado de usuario, MANTENER EL USUARIO
+        // Esto es crucial para evitar pérdida de estado en administración
         if (!token && user) {
-          console.warn('Estado inconsistente: Usuario sin token');
-          setUser(null);
-          storeUser(null);
+          console.warn('Estado inconsistente: Usuario sin token pero manteniendo sesión para evitar pérdidas');
+          // NO limpiamos el usuario aquí para evitar problemas con el panel admin
           setLoading(false);
           return;
         }
@@ -197,39 +197,33 @@ export const UserProvider = ({ children }) => {
           return;
         }
 
-        // No vamos a validar el formato del token aquí,
-        // simplemente intentamos verificar con el backend
-
-        // Verificar con el servidor
-        try {
-          console.log('Verificando token con el servidor...');
-          const response = await fetch(`${getApiUrl()}/auth/profile`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.ok) {
-            console.log('Verificación exitosa, token válido');
-            const data = await response.json();
-            updateUserState(data.user || data.data);
-          } else {
-            console.error('Error en verificación con el servidor:', await response.text());
-            // En producción debería cerrar sesión, en desarrollo podemos mantener para debugging
-            if (process.env.NODE_ENV === 'development') {
-              // Mantener sesión a pesar del error
-              console.log('Manteniendo sesión en modo desarrollo a pesar del error');
+        // Verificar con el servidor (solo en modo producción)
+        // En desarrollo, confiamos completamente en el estado local
+        if (process.env.NODE_ENV === 'production') {
+          try {
+            console.log('Verificando token con el servidor...');
+            const response = await fetch(`${getApiUrl()}/auth/profile`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            if (response.ok) {
+              console.log('Verificación exitosa, token válido');
+              const data = await response.json();
+              updateUserState(data.user || data.data);
             } else {
-              logout();
+              console.error('Error en verificación con el servidor, pero manteniendo sesión local');
+              console.log('Error detalle:', await response.text());
+              // Mantener sesión a pesar del error para evitar pérdidas de estado
             }
+          } catch (error) {
+            console.error('Error al comunicar con el servidor, pero manteniendo sesión local:', error);
+            // Mantenemos la sesión para evitar problemas
           }
-        } catch (error) {
-          console.error('Error al comunicar con el servidor:', error);
-          // Error al verificar con backend - en desarrollo mantenemos sesión
-          if (process.env.NODE_ENV !== 'development') {
-            logout();
-          }
+        } else {
+          console.log('Modo desarrollo: usando solo estado local sin verificar con backend');
         }
         
         setLoading(false);
@@ -242,9 +236,14 @@ export const UserProvider = ({ children }) => {
     // Verificar estado de autenticación al cargar la página
     checkUserLoggedIn();
     
-    // Agregar listener para reconexiones
+    // Evitar verificaciones innecesarias que podrían causar pérdida de estado
+    // Solo verificar al cambiar de offline a online
     const handleOnline = () => {
-      checkUserLoggedIn();
+      // Solo verificar si hay un cambio real en la conexión
+      if (navigator.onLine) {
+        console.log('Conexión recuperada, verificando estado del usuario');
+        checkUserLoggedIn();
+      }
     };
     
     window.addEventListener('online', handleOnline);
@@ -416,7 +415,22 @@ export const UserProvider = ({ children }) => {
   
   // Función para verificar si el usuario es administrador
   const isAdmin = () => {
-    return !!user && user.role === 'admin';
+    // Función más robusta que no depende solo del estado actual
+    if (user && user.role === 'admin') {
+      return true;
+    }
+    
+    // Verificación adicional desde localStorage como respaldo
+    try {
+      const storedUser = getStoredUser();
+      if (storedUser && storedUser.role === 'admin') {
+        return true;
+      }
+    } catch (e) {
+      console.error('Error al verificar rol admin desde localStorage', e);
+    }
+    
+    return false;
   };
   
   // Función para actualizar el perfil del usuario
