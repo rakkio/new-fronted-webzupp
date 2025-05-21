@@ -215,13 +215,13 @@ export default function Header() {
                   href='/auth/login' 
                   className='text-gray-700 font-medium hover:text-indigo-600 transition-colors'
                 >
-                  Inizia Sessione
+                  Sign in
                 </Link>
                 <Link 
                   href='/auth/register' 
                   className='bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-sm hover:shadow-md'
                 >
-                  Registrati
+                  Sign up
               </Link>
             </div>
           )}

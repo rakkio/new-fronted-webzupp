@@ -2,13 +2,16 @@ import { getBlogs } from './api/blog';
 
 // Función para generar el sitemap XML
 const generateSitemap = (baseUrl, routes, blogs) => {
+  // Asegurarse de que la baseUrl no termina con barra
+  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   ${routes
     .map(
       (route) => `
   <url>
-    <loc>${baseUrl}${route}</loc>
+    <loc>${normalizedBaseUrl}${route === '' ? '/' : route + '/'}</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -19,7 +22,7 @@ const generateSitemap = (baseUrl, routes, blogs) => {
     .map(
       (blog) => `
   <url>
-    <loc>${baseUrl}/blog/${blog._id}</loc>
+    <loc>${normalizedBaseUrl}/blog/${blog._id}/</loc>
     <lastmod>${new Date(blog.updatedAt || blog.createdAt).toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
