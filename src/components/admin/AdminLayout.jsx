@@ -2,54 +2,109 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FaUsers, FaBlog, FaFileInvoice, FaGlobe, FaSignOutAlt, FaUserShield, FaSpinner } from 'react-icons/fa';
 import { useUser } from '../../../context/UserContext';
+import { useRouter } from 'next/router';
 
 export default function AdminLayout({ children }) {
-  const { user, isAuthenticated, logout } = useUser();
+  const { user, isAuthenticated, logout, isAdmin: isAdminUser } = useUser();
   const [isClient, setIsClient] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
   
-  // Evitar problemas de hidratación usando useEffect para clientside rendering
+  // Verificar estado de autenticación y permisos
   useEffect(() => {
     setIsClient(true);
     
-    // Verificar explícitamente el token en localStorage
-    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
-    const tokenExists = !!token;
+    // Función para verificar permisos de admin
+    const checkAdminAccess = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Verificar explícitamente el token en localStorage
+        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+        const tokenExists = !!token;
+        
+        // Registrar información sobre el token
+        if (tokenExists && token) {
+          console.log(`AdminLayout - Token: ${token.substring(0, 15)}... (longitud: ${token.length})`);
+        }
+        
+        // Verificar con el backend si el usuario es admin (mediante fetch directo)
+        if (tokenExists) {
+          try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+            const response = await fetch(`${apiUrl}/auth/profile`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              const userRole = data.data?.role || data.user?.role;
+              const isUserAdmin = userRole === 'admin';
+              
+              console.log('AdminLayout - Verificación backend:', {
+                success: true,
+                userRole,
+                isAdmin: isUserAdmin
+              });
+              
+              setIsAdmin(isUserAdmin);
+            } else {
+              console.error('AdminLayout - Error al verificar con backend:', await response.text());
+              setIsAdmin(false);
+            }
+          } catch (error) {
+            console.error('AdminLayout - Error en fetch de verificación:', error);
+            // Si hay un error de red, usar el estado local como respaldo
+            setIsAdmin(isAuthenticated && user?.role === 'admin');
+          }
+        } else {
+          setIsAdmin(false);
+        }
+        
+        // Añadir diagnóstico para verificar el estado de autenticación y rol
+        console.log('AdminLayout - Verificación de acceso:', {
+          token: tokenExists ? 'Presente' : 'No encontrado',
+          autenticado: isAuthenticated,
+          esAdmin: isAdmin,
+          usuarioLocal: user ? {
+            id: user._id,
+            email: user.email,
+            role: user.role || 'no definido'
+          } : 'no disponible'
+        });
+      } catch (err) {
+        console.error('Error al verificar acceso admin:', err);
+        setIsAdmin(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    // Registrar información sobre el token pero no validar estrictamente su formato
-    if (tokenExists && token) {
-      console.log(`AdminLayout - Token: ${token.substring(0, 15)}... (longitud: ${token.length})`);
-    }
+    // Verificar permisos de administrador
+    checkAdminAccess();
     
-    // Determinar si es admin usando isAdmin desde useUser
-    const userIsAdmin = isAuthenticated && user?.role === 'admin';
-    setIsAdmin(userIsAdmin);
+    // Re-verificar cuando cambie la ruta (previene problemas con navegación)
+    const handleRouteChange = () => {
+      checkAdminAccess();
+    };
     
-    // Añadir diagnóstico para verificar el estado de autenticación y rol
-    console.log('AdminLayout - Verificación de acceso:', {
-      token: tokenExists ? 'Presente' : 'No encontrado',
-      autenticado: isAuthenticated,
-      esAdmin: userIsAdmin,
-      usuario: user ? {
-        id: user._id,
-        email: user.email,
-        role: user.role || 'no definido'
-      } : 'no disponible'
-    });
-    
-    // Si no hay token, mostrar mensaje específico
-    if (!tokenExists && isClient) {
-      console.error('AdminLayout: No se encontró token en localStorage');
-    }
-  }, [user, isAuthenticated, isClient, logout]);
+    router.events.on('routeChangeComplete', handleRouteChange);
+    return () => {
+      router.events.off('routeChangeComplete', handleRouteChange);
+    };
+  }, [user, isAuthenticated, router, isAdminUser]);
 
   // Estado de carga inicial - mostrar pantalla de carga mientras determinamos acceso
-  if (!isClient) {
+  if (isLoading || !isClient) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <FaSpinner className="animate-spin text-3xl text-indigo-600 mx-auto mb-4" />
-          <p className="text-gray-600">Cargando...</p>
+          <p className="text-gray-600">Verificando accesso...</p>
         </div>
       </div>
     );
@@ -67,12 +122,20 @@ export default function AdminLayout({ children }) {
             <br/>
             Rol: {user?.role || 'No definido'}
           </div>
-          <button 
-            onClick={logout}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
-          >
-            Cerrar sesión
-          </button>
+          <div className="flex space-x-3 justify-center">
+            <button 
+              onClick={logout}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+            >
+              Cerrar sesión
+            </button>
+            <button 
+              onClick={() => router.push('/')}
+              className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
+            >
+              Ir a inicio
+            </button>
+          </div>
         </div>
       </div>
     );
