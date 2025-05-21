@@ -1,0 +1,16 @@
+# WebZupp robots.txt
+User-agent: *
+Allow: /
+
+# Directorios restringidos
+Disallow: /admin/
+Disallow: /api/
+Disallow: /_next/
+Disallow: /account/
+
+# Archivos especiales
+Disallow: /404
+Disallow: /500
+
+# Sitemap
+Sitemap: https://webzupp.com/sitemap.xml 
