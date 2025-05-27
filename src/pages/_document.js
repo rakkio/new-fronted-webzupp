@@ -1,7 +1,9 @@
 import { Html, Head, Main, NextScript } from "next/document";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export default function Document() {
   return (
+    <SpeedInsights>
     <Html lang="en">
       <Head>
         <meta name="google-site-verification" content="1WEn2r9gaNYZTMjSdKEnEnT3reuAdumNhy3NqH_ICaU" />
@@ -24,5 +26,6 @@ export default function Document() {
         <NextScript />
       </body>
     </Html>
+    </SpeedInsights>
   );
 }
