@@ -4,6 +4,7 @@ import Footer from './footer/Footer'
 import { useUser } from '../../context/UserContext'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export default function Layout({ 
   children, 
@@ -74,6 +75,7 @@ export default function Layout({
 
   return (
     <>
+      <SpeedInsights />
       <Head>
         {/* Metadatos básicos */}
         <title>{seo.title}</title>
