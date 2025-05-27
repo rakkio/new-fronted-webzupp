@@ -11,7 +11,7 @@ const generateSitemap = (baseUrl, routes, blogs) => {
     .map(
       (route) => `
   <url>
-    <loc>${normalizedBaseUrl}${route === '' ? '/' : route + '/'}</loc>
+    <loc>${normalizedBaseUrl}${route === '' ? '' : route}</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -22,7 +22,7 @@ const generateSitemap = (baseUrl, routes, blogs) => {
     .map(
       (blog) => `
   <url>
-    <loc>${normalizedBaseUrl}/blog/${blog._id}/</loc>
+    <loc>${normalizedBaseUrl}/blog/${blog._id}</loc>
     <lastmod>${new Date(blog.updatedAt || blog.createdAt).toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -45,7 +45,7 @@ const routes = [
 export async function getServerSideProps({ res }) {
   try {
     // Configuración base
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://webzupp.com';
+    const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://webzupp.com';
     
     // Obtener todos los blogs publicados
     const blogsResponse = await getBlogs({ status: 'published', limit: 1000 });
