@@ -35,16 +35,6 @@ export default function Home() {
       try {
         // Esperar a que se complete la carga del estado de autenticación
         if (!loading) {
-          // Registrar estado de autenticación actual
-          console.log('Home - Estado de autenticación:', {
-            autenticado: isAuthenticated,
-            usuario: user ? {
-              id: user._id,
-              email: user.email,
-              role: user.role || 'no definido'
-            } : 'no disponible'
-          })
-          
           setAuthChecked(true)
         }
       } catch (err) {

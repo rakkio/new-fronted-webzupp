@@ -106,7 +106,9 @@ export default function Editor({ value, onChange }) {
     content: value,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
-    }
+    },
+    immediatelyRender: false, // Evita problemi di idratazione SSR
+    shouldRerenderOnTransaction: false // Migliora le performance
   });
 
   return (

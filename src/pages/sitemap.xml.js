@@ -22,7 +22,7 @@ const generateSitemap = (baseUrl, routes, blogs) => {
     .map(
       (blog) => `
   <url>
-    <loc>${normalizedBaseUrl}/blog/${blog._id}</loc>
+    <loc>${normalizedBaseUrl}/blog/${blog.slug || blog._id}</loc>
     <lastmod>${new Date(blog.updatedAt || blog.createdAt).toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -37,9 +37,15 @@ const routes = [
   '',
   '/blog',
   '/servizi',
+  '/services',
+  '/services/cms',
+  '/services/web-development',
+  '/services/ecommerce',
+  '/services/mobile-app',
+  '/services/maintenance',
+  '/services/seo-marketing',
   '/chi-siamo',
   '/contatti',
-  '/portfolio'
 ];
 
 export async function getServerSideProps({ res }) {

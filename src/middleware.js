@@ -1,26 +1,25 @@
 import { NextResponse } from 'next/server';
 
 export function middleware(request) {
-  // Obtener la URL actual
+  // Ottieni l'URL corrente
   const url = request.nextUrl.clone();
   const { pathname } = url;
-
-  // Si la ruta comienza con /en, redirigir a la misma ruta pero sin el prefijo /en
-  if (pathname.startsWith('/en')) {
-    // Eliminar el prefijo /en
-    const newPath = pathname.replace(/^\/en/, '') || '/';
-    
-    // Crear nueva URL sin el prefijo /en
-    url.pathname = newPath;
-    
-    // Redirigir permanentemente a la URL sin el prefijo
-    return NextResponse.redirect(url, { status: 301 });
+  
+  // Ottieni la lingua dal header Accept-Language
+  const acceptLanguage = request.headers.get('accept-language') || '';
+  const hasItalianPreference = acceptLanguage.includes('it');
+  
+  if (hasItalianPreference && !pathname.startsWith('/en') && !pathname.startsWith('/it')) {
+    // Next.js già gestisce questo tramite i18n config, quindi lasciamo che lo faccia
+    return NextResponse.next();
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  // Aplicar este middleware a todas las rutas
-  matcher: '/:path*',
+  // Escludiamo i file statici e le API
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
+  ],
 }; 

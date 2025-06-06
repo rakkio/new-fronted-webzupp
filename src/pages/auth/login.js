@@ -187,7 +187,7 @@ export default function Login() {
             </form>
             <div className="flex justify-between items-center mt-6">
               <Link href="/auth/register" className="text-indigo-200 hover:text-white text-sm font-medium transition">Non hai un account? Registrati</Link>
-              <a href="#" className="text-indigo-200 hover:text-white text-sm font-medium transition">Password dimenticata?</a>
+              <a href="/auth/forgot-password" className="text-indigo-200 hover:text-white text-sm font-medium transition">Password dimenticata?</a>
             </div>
           </div>
         </div>

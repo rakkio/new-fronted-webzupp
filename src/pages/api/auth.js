@@ -324,7 +324,7 @@ export const requestPasswordReset = async (email) => {
   try {
     console.log('Solicitando restablecimiento de contraseña para:', email);
     
-    const response = await fetch(`${API_URL}/auth/request-reset`, {
+    const response = await fetch(`${API_URL}/auth/request-password-reset`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -102,6 +102,33 @@ export const getBlog = async (id) => {
     };
   }
 };
+// Obtener un blog por slug
+export const getBlogBySlug = async (slug) => {
+  try {
+    console.log('Frontend: Fetching blog with slug:', slug);
+    const url = `${getApiUrl()}/blogs/slug/${slug}`;
+    console.log('Frontend: API URL:', url);
+    
+    const response = await fetch(url);
+    console.log('Frontend: Response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.log('Frontend: Error response:', errorData);
+      throw new Error(errorData.message || 'Error en la petición');
+    }
+    
+    const result = await response.json();
+    console.log('Frontend: Success response:', result);
+    return result;
+  } catch (error) {
+    console.error('Frontend: Error fetching blog by slug:', error);
+    return {
+      success: false,
+      message: error.message || 'Error al obtener blog por slug'
+    };
+  }
+};
 
 // Crear un nuevo blog
 export const createBlog = async (blogData) => {

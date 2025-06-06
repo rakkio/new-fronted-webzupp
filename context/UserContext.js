@@ -55,10 +55,8 @@ const getStoredToken = () => {
     
     // Registrar información de diagnóstico
     if (directToken) {
-      console.log(`Token directo encontrado (longitud: ${directToken.length})`);
     }
     if (backupToken && backupToken !== directToken) {
-      console.log(`Token de respaldo encontrado (longitud: ${backupToken.length})`);
     }
     
     // 1. Priorizar el token directo si existe y parece válido
@@ -68,7 +66,6 @@ const getStoredToken = () => {
     
     // 2. Intentar usar el token de respaldo
     if (backupToken && backupToken.split('.').length === 3) {
-      console.log('Usando token de respaldo que parece tener formato válido');
       // Restaurar el token principal desde el respaldo
       localStorage.setItem('token', backupToken);
       return backupToken;
@@ -76,7 +73,6 @@ const getStoredToken = () => {
     
     // 3. Intentar extraer token del objeto usuario
     if (userData && userData.token) {
-      console.log('Usando token extraído del objeto usuario');
       localStorage.setItem('token', userData.token);
       return userData.token;
     }
@@ -84,7 +80,6 @@ const getStoredToken = () => {
     // 4. Devolver el token directo aunque sea inválido como último recurso
     return directToken;
   } catch (e) {
-    console.error('Error al obtener token:', e);
     return null;
   }
 };
@@ -96,7 +91,6 @@ const storeToken = (token) => {
     try {
       // Registrar información del token pero no validar su formato
       if (typeof token === 'string') {
-        console.log(`Guardando token: ${token.substring(0, 15)}... (longitud: ${token.length})`);
       }
       
       localStorage.setItem('token', token);
@@ -105,7 +99,6 @@ const storeToken = (token) => {
       localStorage.setItem('token_length', String(token.length));
     } catch (e) {
       // Error al guardar token
-      console.error('Error al guardar token en localStorage', e);
     }
   } else {
     localStorage.removeItem('token');
@@ -154,7 +147,6 @@ export const UserProvider = ({ children }) => {
   const updateUserState = (userData) => {
     // Si hay usuario pero no hay token, esto es un estado inválido
     if (userData && !getStoredToken()) {
-      console.error('INCONSISTENCIA CRÍTICA: Intentando establecer usuario sin token.');
       clearAllSessionData();
       return;
     }
@@ -170,7 +162,6 @@ export const UserProvider = ({ children }) => {
     
     // Si hay inconsistencia entre token y usuario, corregir
     if ((!token && storedUser) || (token && !storedUser)) {
-      console.error('Inconsistencia entre token y datos de usuario. Restableciendo sesión.');
       clearAllSessionData();
     }
     
@@ -200,27 +191,19 @@ export const UserProvider = ({ children }) => {
         try {
           token = localStorage.getItem('token');
           if (token) {
-            console.log(`Token encontrado en localStorage: ${token.substring(0, 15)}... (longitud: ${token.length})`);
           }
         } catch (e) {
-          console.error('Error al obtener token de localStorage:', e);
           token = null;
         }
         
         // Obtener usuario almacenado
         const storedUser = getStoredUser();
         if (storedUser) {
-          console.log('Usuario encontrado en localStorage:', {
-            id: storedUser._id,
-            email: storedUser.email,
-            role: storedUser.role || 'no definido'
-          });
         }
         
         // Si no hay token pero hay estado de usuario, MANTENER EL USUARIO
         // Esto es crucial para evitar pérdida de estado en administración
         if (!token && user) {
-          console.warn('Estado inconsistente: Usuario sin token pero manteniendo sesión para evitar pérdidas');
           // NO limpiamos el usuario aquí para evitar problemas con el panel admin
           setLoading(false);
           return;
@@ -241,7 +224,6 @@ export const UserProvider = ({ children }) => {
         // En desarrollo, confiamos completamente en el estado local
         if (process.env.NODE_ENV === 'production') {
           try {
-            console.log('Verificando token con el servidor...');
             const response = await fetch(`${getApiUrl()}/auth/profile`, {
               method: 'GET',
               headers: {
@@ -250,25 +232,20 @@ export const UserProvider = ({ children }) => {
             });
             
             if (response.ok) {
-              console.log('Verificación exitosa, token válido');
               const data = await response.json();
               updateUserState(data.user || data.data);
             } else {
               console.error('Error en verificación con el servidor, pero manteniendo sesión local');
-              console.log('Error detalle:', await response.text());
               // Mantener sesión a pesar del error para evitar pérdidas de estado
-            }
+            } 
           } catch (error) {
-            console.error('Error al comunicar con el servidor, pero manteniendo sesión local:', error);
             // Mantenemos la sesión para evitar problemas
           }
         } else {
-          console.log('Modo desarrollo: usando solo estado local sin verificar con backend');
         }
         
         setLoading(false);
       } catch (error) {
-        console.error('Error al verificar autenticación:', error);
         setLoading(false);
       }
     };
@@ -281,7 +258,6 @@ export const UserProvider = ({ children }) => {
     const handleOnline = () => {
       // Solo verificar si hay un cambio real en la conexión
       if (navigator.onLine) {
-        console.log('Conexión recuperada, verificando estado del usuario');
         checkUserLoggedIn();
       }
     };
@@ -313,11 +289,6 @@ export const UserProvider = ({ children }) => {
       const userRole = response.headers.get('X-User-Role');
       const fullToken = response.headers.get('X-Auth-Token');
       
-      // Registrar información de diagnóstico
-      if (userId) console.log('Recibido ID de usuario en cabecera:', userId);
-      if (userEmail) console.log('Recibido Email en cabecera:', userEmail);
-      if (userRole) console.log('Recibido Role en cabecera:', userRole);
-      if (fullToken) console.log('Recibido token completo en cabecera (longitud):', fullToken.length);
       
       // Almacenar estas cabeceras para identificación adicional
       if (userId) localStorage.setItem('user_id', userId);
@@ -326,7 +297,6 @@ export const UserProvider = ({ children }) => {
       
       // Si recibimos el token completo en cabecera, usarlo directamente
       if (fullToken && fullToken.split('.').length === 3) {
-        console.log('Usando token completo de cabecera, más confiable');
         localStorage.setItem('token', fullToken);
         localStorage.setItem('token_backup', fullToken);
         localStorage.setItem('token_length', String(fullToken.length));
@@ -366,7 +336,6 @@ export const UserProvider = ({ children }) => {
           const bestToken = fullToken || token;
           
           // Para depuración: mostrar detalles del token
-          console.log(`Token recibido: ${bestToken.substring(0, 20)}... (longitud: ${bestToken.length})`);
           
           // Guardar el token de manera redundante para mayor resiliencia
           localStorage.setItem('token', bestToken);
@@ -444,7 +413,6 @@ export const UserProvider = ({ children }) => {
           let token = data.data.token;
           
           // Para depuración: mostrar detalles del token
-          console.log(`Token recibido en registro: ${token.substring(0, 20)}... (longitud: ${token.length})`);
           
           // Guardar el token incluso si el formato no es 100% válido
           localStorage.setItem('token', token);
@@ -513,11 +481,9 @@ export const UserProvider = ({ children }) => {
             return true;
           }
         } catch (e) {
-          console.error('Error al analizar datos de usuario legacy', e);
         }
       }
-    } catch (e) {
-      console.error('Error al verificar rol admin desde localStorage', e);
+    } catch (e) {   
     }
     
     return false;

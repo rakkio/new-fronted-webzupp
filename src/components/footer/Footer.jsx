@@ -14,10 +14,9 @@ export default function Footer() {
 
   // Enlaces de servicios
   const serviceLinks = [
-    { label: 'Web Design', href: '/services/web-design' },
-    { label: 'Sviluppo Personalizzato', href: '/services/custom-development' },
+    { label: 'Web Design', href: '/services/web-development' },
     { label: 'E-commerce', href: '/services/ecommerce' },
-    { label: 'Marketing Digitale', href: '/services/digital-marketing' }
+    { label: 'Marketing Digitale', href: '/services/seo-marketing' }
   ]
 
   // Enlaces de recursos

@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const { i18n } = require('./next-i18next.config')
+
 const nextConfig = {
   reactStrictMode: true,
   eslint: {
@@ -19,10 +21,7 @@ const nextConfig = {
     ],
     formats: ['image/avif', 'image/webp'],
   },
-  i18n: {
-    locales: ['it', 'en'],
-    defaultLocale: 'it',
-  },
+  i18n,
   compress: true,
   poweredByHeader: false,
   async rewrites() {

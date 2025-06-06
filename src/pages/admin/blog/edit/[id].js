@@ -92,6 +92,8 @@ export default function EditBlog() {
         });
       }
 
+      console.log('handleImageUpload - Upload response:', response.data);
+      
       setPost(prev => ({
         ...prev,
         featuredImage: {
@@ -100,6 +102,12 @@ export default function EditBlog() {
           alt: post.title
         }
       }));
+
+      console.log('handleImageUpload - Updated post featured image:', {
+        url: response.data.url,
+        publicId: response.data.public_id,
+        alt: post.title
+      });
 
       toast.success('Imagen subida correctamente');
     } catch (err) {

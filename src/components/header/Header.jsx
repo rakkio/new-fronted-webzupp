@@ -22,15 +22,7 @@ export default function Header() {
       // Verificar si el usuario es admin basándose en el rol
       setAdminRole(user?.role === 'admin');
       
-      console.log('Header - Estado de autenticación:', {
-        autenticado: isAuthenticated,
-        esAdmin: user?.role === 'admin', 
-        usuario: user ? {
-          id: user._id,
-          email: user.email,
-          role: user.role || 'no definido'
-        } : 'no disponible'
-      });
+      
     };
     
     // Verificar inmediatamente
@@ -183,7 +175,7 @@ export default function Header() {
                     <div className='py-1'>
                       {adminRole && (
                         <Link
-                          href='/dashboard'
+                          href='/admin/dashboard'
                           className='flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
                           onClick={() => setDropdownOpen(false)}
                         >

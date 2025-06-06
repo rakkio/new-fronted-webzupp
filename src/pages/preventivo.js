@@ -110,12 +110,10 @@ export default function Preventivo() {
   }
 
   const handleFeatureToggle = (feature) => {
-    console.log('Toggle feature:', feature); // Debug log
     setFormData(prev => {
       const newFeatures = prev.features.includes(feature)
         ? prev.features.filter(f => f !== feature)
         : [...prev.features, feature];
-      console.log('Nuevas features:', newFeatures); // Debug log
       return {
         ...prev,
         features: newFeatures
@@ -193,9 +191,6 @@ export default function Preventivo() {
     // Asegurar que no se envíe el formulario automáticamente
     if (e) e.preventDefault();
     
-    console.log('nextStep - Step actual:', step); // Debug log
-    console.log('Features actuales:', formData.features); // Debug log
-    
     // Validación básica antes de avanzar
     if (step === 1) {
       if (!formData.name || !formData.email) {
@@ -221,18 +216,14 @@ export default function Preventivo() {
     
     // Para el paso 3, requerimos al menos una característica
     if (step === 3) {
-      console.log('Validando paso 3...'); // Debug log
       if (!formData.features || formData.features.length === 0) {
-        console.log('No hay features seleccionadas'); // Debug log
         toast.error('Seleziona almeno una funzionalità')
         return
       }
-      console.log('Features válidas:', formData.features); // Debug log
     }
     
     // No avanzar más allá del paso 4
     if (step < 4) {
-      console.log('Avanzando al paso:', step + 1); // Debug log
       setStep(prev => prev + 1)
     }
   }
@@ -249,9 +240,6 @@ export default function Preventivo() {
   const formTitleClass = "text-2xl font-semibold text-indigo-900 mb-6 flex items-center"
   const stepNumberClass = "flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 transform"
   const textClasses = "text-gray-900 font-medium"
-
-  // Estados para mostrar el resumen de datos
-  const [showDebug, setShowDebug] = useState(false)
 
   return (
     <Layout>
@@ -308,7 +296,6 @@ export default function Preventivo() {
 
             <form 
               onSubmit={(e) => {
-                // Solo permitir envío cuando se hace clic en el botón de envío en el paso 4
                 if (step !== 4 || !e.nativeEvent.submitter || e.nativeEvent.submitter.type !== 'submit') {
                   e.preventDefault();
                   return;
@@ -322,7 +309,6 @@ export default function Preventivo() {
               }}
               className="p-8"
             >
-              {/* Paso 1: Información básica */}
               {step === 1 && (
                 <div className="space-y-6">
                   <h2 className={formTitleClass}>
@@ -391,14 +377,12 @@ export default function Preventivo() {
                 </div>
               )}
 
-              {/* Paso 2: Tipo de proyecto */}
               {step === 2 && (
                 <div className="space-y-8">
                   <h2 className={formTitleClass}>
                     <FaStar className="text-indigo-500 mr-2" /> Tipo di Progetto
                   </h2>
                   
-                  {/* Tipo de proyecto */}
                   <div>
                     <label className={labelClasses + " mb-4"}>
                       Tipo di Progetto <span className="text-red-500">*</span>
@@ -427,8 +411,7 @@ export default function Preventivo() {
                       ))}
                     </div>
                   </div>
-
-                  {/* Presupuesto */}
+                        
                   <div>
                     <label className={labelClasses + " mb-4"}>
                       Budget <span className="text-red-500">*</span>

@@ -3,19 +3,19 @@ import Layout from '@/components/Layout'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { FaCalendarAlt, FaUser, FaTag, FaClock, FaShare, FaFacebook, FaTwitter, FaLinkedin, FaArrowLeft } from 'react-icons/fa'
-import { getBlog, getBlogs } from '@/pages/api/blog'
+import { getBlogBySlug, getBlogs } from '@/pages/api/blog'
 import { motion } from 'framer-motion'
 import { subscribeToNewsletter } from '@/pages/api/newsletter'
 
 export default function BlogPost({ initialPost, initialRelatedPosts, error: serverError }) {
   const router = useRouter()
-  const { id } = router.query
+  const { slug } = router.query
 
   const [post, setPost] = useState(initialPost)
   const [loading, setLoading] = useState(!initialPost)
   const [error, setError] = useState(serverError)
   const [relatedPosts, setRelatedPosts] = useState(initialRelatedPosts || [])
-  const [loadingRelated, setLoadingRelated] = useState(!initialRelatedPosts)
+  const [loadingRelated, setLoadingRelated] = useState(false)
   
   // Estado para la suscripción a newsletter
   const [email, setEmail] = useState('')
@@ -26,14 +26,18 @@ export default function BlogPost({ initialPost, initialRelatedPosts, error: serv
 
   // Si no tenemos post inicial, lo cargamos del cliente
   useEffect(() => {
-    if (initialPost || !id) return;
+    if (initialPost || !slug) return;
     
     const fetchPost = async () => {
       try {
         setLoading(true);
-        const response = await getBlog(id);
-        setPost(response.data);
-        setError(null);
+        const response = await getBlogBySlug(slug);
+        if (response.success) {
+          setPost(response.data);
+          setError(null);
+        } else {
+          setError(response.message || 'Articolo non trovato');
+        }
       } catch (err) {
         setError('Articolo non trovato');
       } finally {
@@ -42,7 +46,7 @@ export default function BlogPost({ initialPost, initialRelatedPosts, error: serv
     };
     
     fetchPost();
-  }, [id, initialPost]);
+  }, [slug, initialPost]);
 
   // Si no tenemos posts relacionados iniciales, los cargamos del cliente
   useEffect(() => {
@@ -70,7 +74,7 @@ export default function BlogPost({ initialPost, initialRelatedPosts, error: serv
             : (response.data.blogs || []);
             
           relatedData = relatedData
-            .filter(relatedPost => relatedPost._id !== id)
+            .filter(relatedPost => relatedPost.slug !== slug)
             .slice(0, 3);
             
           setRelatedPosts(relatedData);
@@ -83,7 +87,7 @@ export default function BlogPost({ initialPost, initialRelatedPosts, error: serv
     };
     
     fetchRelatedPosts();
-  }, [post, id, initialRelatedPosts]);
+  }, [post, slug, initialRelatedPosts]);
 
   // Manejar la suscripción a la newsletter
   const handleNewsletterSubmit = async (e) => {
@@ -136,6 +140,21 @@ export default function BlogPost({ initialPost, initialRelatedPosts, error: serv
     description: 'Articoli e guide sul mondo del web development, design e marketing digitale.',
     type: 'website'
   };
+
+  // Función para obtener imagen fallback basada en categoría
+  const getFallbackImageForCategory = (category, width = 400, height = 300) => {
+    const categoryLower = (category || '').toLowerCase()
+    
+    if (categoryLower.includes('javascript') || categoryLower.includes('react') || categoryLower.includes('next')) {
+      return `https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=${width}&h=${height}&fit=crop&crop=entropy&auto=format&q=80`
+    } else if (categoryLower.includes('seo') || categoryLower.includes('marketing')) {
+      return `https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=${width}&h=${height}&fit=crop&crop=entropy&auto=format&q=80`
+    } else if (categoryLower.includes('design')) {
+      return `https://images.unsplash.com/photo-1541462608143-67571c6738dd?w=${width}&h=${height}&fit=crop&crop=entropy&auto=format&q=80`
+    } else {
+      return `https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=${width}&h=${height}&fit=crop&crop=entropy&auto=format&q=80`
+    }
+  }
 
   if (loading) {
     return (
@@ -227,13 +246,41 @@ export default function BlogPost({ initialPost, initialRelatedPosts, error: serv
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7 }}
-              className="rounded-2xl overflow-hidden shadow-xl"
+              className="rounded-2xl overflow-hidden shadow-xl relative h-96"
             >
               <img
                 src={post.featuredImage.url}
-                alt={post.title}
-                className="object-cover w-full h-full"
+                alt={post.featuredImage.alt || post.title}
+                className="w-full h-full object-cover transition-opacity duration-300"
+                onError={(e) => {
+                  console.log('🔄 Fallback featured image per:', post.title, 'URL:', e.target.src);
+                  if (!e.target.dataset.fallback) {
+                    e.target.dataset.fallback = '1';
+                    const category = post.categories?.[0]?.toLowerCase() || 'programming'
+                    let fallbackUrl;
+                    
+                                               fallbackUrl = getFallbackImageForCategory(category, 400, 250);
+                    
+                    e.target.src = fallbackUrl
+                    console.log('✅ Fallback featured caricato:', fallbackUrl);
+                  }
+                }}
+                onLoad={(e) => {
+                  e.target.style.opacity = '1'
+                }}
+                style={{ opacity: 0 }}
               />
+              {/* Overlay con informazioni */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6">
+                <div className="text-white">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/25 text-white backdrop-blur-sm mb-3">
+                    {post.categories?.[0] || 'Blog'}
+                  </span>
+                  <h2 className="text-xl font-bold leading-tight">
+                    {post.title.length > 60 ? post.title.substring(0, 60) + '...' : post.title}
+                  </h2>
+                </div>
+              </div>
             </motion.div>
           </div>
         </section>
@@ -328,12 +375,34 @@ export default function BlogPost({ initialPost, initialRelatedPosts, error: serv
                   key={relatedPost._id}
                   className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
                 >
-                  <div className="aspect-w-16 aspect-h-9 bg-gray-100">
+                  <div className="aspect-w-16 aspect-h-9 bg-gray-100 relative h-48">
                     <img
-                      src={relatedPost.featuredImage?.url || '/images/blog/default.jpg'}
-                      alt={relatedPost.title}
-                      className="object-cover w-full h-full"
+                                              src={relatedPost.featuredImage?.url || getFallbackImageForCategory(relatedPost.categories?.[0], 400, 250)}
+                      alt={relatedPost.featuredImage?.alt || relatedPost.title}
+                      className="w-full h-full object-cover transition-opacity duration-300"
+                      onError={(e) => {
+                        if (!e.target.dataset.fallback) {
+                          e.target.dataset.fallback = '1';
+                          const category = relatedPost.categories?.[0]?.toLowerCase() || 'programming'
+                          let fallbackUrl;
+                          
+                          fallbackUrl = getFallbackImageForCategory(category, 800, 400);
+                          
+                          e.target.src = fallbackUrl
+                          console.log('✅ Fallback related post caricato:', fallbackUrl);
+                        }
+                      }}
+                      onLoad={(e) => {
+                        e.target.style.opacity = '1'
+                      }}
+                      style={{ opacity: 0 }}
                     />
+                    {/* Overlay con categoria */}
+                    <div className="absolute top-2 left-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-black/50 text-white backdrop-blur-sm">
+                        {relatedPost.categories?.[0] || 'Blog'}
+                      </span>
+                    </div>
                   </div>
                   <div className="p-6">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 mb-4">
@@ -348,10 +417,10 @@ export default function BlogPost({ initialPost, initialRelatedPosts, error: serv
                       {relatedPost.createdAt ? new Date(relatedPost.createdAt).toLocaleDateString() : ''}
                     </div>
                     <Link
-                      href={`/blog/${relatedPost._id}`}
-                      className="mt-4 inline-flex items-center text-indigo-600 hover:text-indigo-800 transition-colors"
+                      href={`/blog/${relatedPost.slug}`}
+                      className="mt-4 inline-block text-indigo-600 hover:text-indigo-800 transition-colors"
                     >
-                      Leggi di più <FaArrowLeft className="ml-2 rotate-180" />
+                      Leggi tutto
                     </Link>
                   </div>
                 </motion.article>
@@ -427,11 +496,11 @@ export default function BlogPost({ initialPost, initialRelatedPosts, error: serv
 
 // Obtener datos del servidor para SEO
 export async function getServerSideProps(context) {
-  const { id } = context.params;
+  const { slug } = context.params;
   
   try {
     // Obtener post principal
-    const response = await getBlog(id);
+    const response = await getBlogBySlug(slug);
     
     if (!response.success || !response.data) {
       return {
@@ -463,7 +532,7 @@ export async function getServerSideProps(context) {
           : (relatedResponse.data.blogs || []);
           
         relatedPosts = relatedData
-          .filter(relatedPost => relatedPost._id !== id)
+          .filter(relatedPost => relatedPost.slug !== slug)
           .slice(0, 3);
       }
     }
