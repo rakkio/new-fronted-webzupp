@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import Layout from '@/components/Layout'
 import Link from 'next/link'
 import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { useUser } from '../../context/UserContext'
+import { useUser } from '@/../context/UserContext'
 import { 
   FaRocket, FaCode, FaMobile, FaChartLine, FaShieldAlt, FaUsers,
   FaReact, FaNodeJs, FaPython, FaPhp, FaDatabase, FaAws,
@@ -18,10 +17,7 @@ import {
   SiMaterialdesign, SiChakraui
 } from 'react-icons/si'
 
-// Registrar el plugin ScrollTrigger
-if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger)
-}
+// ScrollTrigger se importará dinámicamente en los useEffect
 
 export default function Home() {
   const techRef = useRef(null)
@@ -47,59 +43,67 @@ export default function Home() {
   }, [isAuthenticated, user, loading])
 
   useEffect(() => {
-    if (!techRef.current) return
+    if (!techRef.current || typeof window === 'undefined') return
 
-    const techItems = techItemsRef.current
+    const initAnimations = async () => {
+      // Importar ScrollTrigger dinámicamente
+      const { ScrollTrigger } = await import('gsap/ScrollTrigger')
+      gsap.registerPlugin(ScrollTrigger)
 
-    // Animación para cada categoría
-    techItems.forEach((item, index) => {
-      gsap.fromTo(
-        item,
-        {
-          y: 100,
-          opacity: 0,
-        },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 1,
-          ease: 'power3.out',
-          scrollTrigger: {
-            trigger: item,
-            start: 'top bottom-=100',
-            toggleActions: 'play none none reverse',
+      const techItems = techItemsRef.current
+
+      // Animación para cada categoría
+      techItems.forEach((item, index) => {
+        gsap.fromTo(
+          item,
+          {
+            y: 100,
+            opacity: 0,
           },
-        }
-      )
-    })
+          {
+            y: 0,
+            opacity: 1,
+            duration: 1,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: item,
+              start: 'top bottom-=100',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        )
+      })
 
-    // Animación para los iconos dentro de cada categoría
-    const allIcons = techRef.current.querySelectorAll('.tech-icon')
-    allIcons.forEach((icon, index) => {
-      gsap.fromTo(
-        icon,
-        {
-          scale: 0,
-          rotation: -180,
-        },
-        {
-          scale: 1,
-          rotation: 0,
-          duration: 0.8,
-          ease: 'back.out(1.7)',
-          delay: index * 0.1,
-          scrollTrigger: {
-            trigger: icon,
-            start: 'top bottom-=50',
-            toggleActions: 'play none none reverse',
+      // Animación para los iconos dentro de cada categoría
+      const allIcons = techRef.current.querySelectorAll('.tech-icon')
+      allIcons.forEach((icon, index) => {
+        gsap.fromTo(
+          icon,
+          {
+            scale: 0,
+            rotation: -180,
           },
-        }
-      )
-    })
+          {
+            scale: 1,
+            rotation: 0,
+            duration: 0.8,
+            ease: 'back.out(1.7)',
+            delay: index * 0.1,
+            scrollTrigger: {
+              trigger: icon,
+              start: 'top bottom-=50',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        )
+      })
 
-    return () => {
-      ScrollTrigger.getAll().forEach(trigger => trigger.kill())
+      return () => {
+        ScrollTrigger.getAll().forEach(trigger => trigger.kill())
+      }
     }
+
+    initAnimations()
   }, [authChecked])
 
   const features = [
