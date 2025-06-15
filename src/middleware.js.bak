@@ -1,0 +1,13 @@
+import { NextResponse } from 'next/server';
+
+export function middleware(request) {
+  // Simplified middleware - just pass through all requests
+  return NextResponse.next();
+}
+
+export const config = {
+  // Only match specific paths to avoid conflicts
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
+  ],
+}; 
