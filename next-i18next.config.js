@@ -2,9 +2,9 @@ module.exports = {
   i18n: {
     defaultLocale: 'it',
     locales: ['it', 'en'],
-    localePath: './public/locales',
-    localeDetection: true,
+    localeDetection: false,
   },
+  localePath: './public/locales',
   fallbackLng: {
     'en': ['it'],
     'it': ['en'],
