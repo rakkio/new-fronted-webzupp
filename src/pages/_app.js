@@ -1,5 +1,5 @@
 import "@/styles/globals.css";
-import { UserProvider } from "@/../context/UserContext";
+import { UserProvider } from "@/context/UserContext";
 import { useEffect } from "react";
 import { appWithTranslation } from 'next-i18next';
 
